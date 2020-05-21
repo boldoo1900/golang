@@ -1,0 +1,31 @@
+@startuml
+package "model" {
+    class "Product" as model.Product <<V,Orchid>> {
+        +Id: int
+        +Price: int
+    }
+}
+
+package "repo" {
+    class "ProductRepo" as repo.ProductRepo <<V,Orchid>> {
+        +Get(id int): Product
+    }
+}
+
+package "service" {
+    class "ProductService" as service.ProductService <<V,Orchid>> {
+        +Exist(id int) bool
+    }
+    interface "ProductRepoInterface" as service.ProductRepoInterface <<V,Orchid>> {
+        +Get(id int): Product
+    }
+}
+
+main --> service.ProductService
+main --> repo.ProductRepo
+
+service.ProductRepoInterface --> model.Product
+
+repo.ProductRepo --> model.Product
+repo.ProductRepo --> service.ProductRepoInterface
+@enduml

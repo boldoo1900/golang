@@ -1,0 +1,36 @@
+
+## service.go
+```
+
+func NewProductService(repo ProductRepoInterface) ProductService {
+	return ProductService{Repo: repo}
+}
+
+```
+
+## wire
+```
+package wire
+
+import (
+	"github.com/google/wire"
+	"github.com/ha-t2/di-sample/repo"
+	"github.com/ha-t2/di-sample/service"
+)
+
+func InitializeProductService() service.ProductService {
+	wire.Build(service.NewProductService, repo.NewProductRepo)
+	return service.ProductService{}
+}
+
+```
+
+## main.go
+```
+//r := repo.NewProductRepo()
+//s := service.NewProductService(r)
+s : = InitializeProductService()
+
+fmt.Println(s.Exist(1))
+fmt.Println(s.Exist(2))
+```
