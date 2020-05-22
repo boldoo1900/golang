@@ -1,47 +1,45 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"server/utils"
 	"strings"
 )
 
 var count = 0
-var colors = [5]string{"\033[31m", "\033[32m", "\033[33m", "\033[34m", "\033[35m"} //Red, Green, Yellow, Blue, Purple
 
 func handleConnection(conn net.Conn, clientID int) {
-	buffer := make([]byte, 512)
-	buffLen, err := conn.Read(buffer)
-	if err != nil {
-		log.Println("client left..")
-		conn.Close()
-		return
+	for {
+		byteArr, err := utils.NewReader(conn).ReadObject()
+		// fmt.Println(string(byteArr))
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		tmp := strings.TrimSpace(string(byteArr))
+		result := utils.DoLogic(tmp)
+		utils.NewWriter(conn).WriteString(result)
 	}
-
-	commands := strings.TrimSpace(string(buffer[:buffLen]))
-
-	// colors up to 5
-	// Println(colors[clientID%5], temp)
-
-	w := bufio.NewWriter(conn)
-	utils.RedisWriteObject(w, commands)
-
-	// recursive func to handle io.EOF for random disconnect
-	handleConnection(conn, clientID)
 }
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	arguments := os.Args
 	if len(arguments) == 1 {
 		fmt.Println("Please provide a port number!")
 		return
 	}
 
-	PORT := "127.0.0.1:" + arguments[1]
+	PORT := "0.0.0.0:" + arguments[1]
 	l, err := net.Listen("tcp4", PORT)
 	if err != nil {
 		fmt.Println(err)
