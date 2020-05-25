@@ -13,7 +13,7 @@ import (
 
 var count = 0
 
-func handleConnection(conn net.Conn, clientID int) {
+func handleConnection(conn net.Conn, clientID int, mapObj *utils.RedisMap) {
 	for {
 		byteArr, err := utils.NewReader(conn).ReadObject()
 		// fmt.Println(string(byteArr))
@@ -23,7 +23,7 @@ func handleConnection(conn net.Conn, clientID int) {
 		}
 
 		tmp := strings.TrimSpace(string(byteArr))
-		result := utils.DoLogic(tmp)
+		result := utils.DoLogic(tmp, mapObj)
 		utils.NewWriter(conn).WriteString(result)
 	}
 }
@@ -47,13 +47,14 @@ func main() {
 	}
 	defer l.Close()
 
+	mapObj := utils.NewRedisMap()
 	for {
 		c, err := l.Accept()
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		go handleConnection(c, count)
+		go handleConnection(c, count, mapObj)
 		count++
 	}
 }

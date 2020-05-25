@@ -32,30 +32,25 @@ func TestGet(t *testing.T) {
 		want string
 	}{
 		{name: "case1", arr: []string{"get", "nonexisting"}, want: "$-1"}, // special value (nil)
-		{name: "case2", arr: []string{"set", "mykey", "hello"}, want: "+OK"},
-		{name: "case3", arr: []string{"get", "mykey"}, want: "hello"},
+		{name: "case2", arr: []string{"get", "mykey"}, want: "hello"},
+		{name: "case3", arr: []string{"GeT", "mykey"}, want: "hello"},
 	}
-	for _, tt := range tests {
-		if tt.name == "case2" {
-			t.Run(tt.name, func(t *testing.T) {
-				if got := utils.CommandSet(&tt.arr); got != tt.want {
-					t.Errorf("CommandSet(%v) = %v, want %v", tt.arr, got, tt.want)
-				}
-			})
-		} else {
-			t.Run(tt.name, func(t *testing.T) {
-				var got string
-				if tt.name == "case3" {
-					got = utils.CommandGet(&tt.arr)[4:]
-				} else {
-					got = utils.CommandGet(&tt.arr)
-				}
 
-				if got != tt.want {
-					t.Errorf("CommandGet(%v) = %v, want %v", tt.arr, got, tt.want)
-				}
-			})
-		}
+	mapObj := utils.NewRedisMap()
+	mapObj.Set("mykey", "hello")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got string
+			if tt.name == "case2" || tt.name == "case3" {
+				got = utils.CommandGet(&tt.arr, mapObj)[4:]
+			} else {
+				got = utils.CommandGet(&tt.arr, mapObj)
+			}
+
+			if got != tt.want {
+				t.Errorf("CommandGet(%v) = %v, want %v", tt.arr, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -66,25 +61,18 @@ func TestSet(t *testing.T) {
 		want string
 	}{
 		{name: "case1", arr: []string{"set", "mykey", "hello"}, want: "+OK"},
-		{name: "case2", arr: []string{"get", "mykey"}, want: "hello"},
-		{name: "case3", arr: []string{"set", "mykey1", "hello1", "nx"}, want: "+OK"}, // set only if not exists
-		{name: "case4", arr: []string{"set", "mykey", "hello1", "xx"}, want: "+OK"},  // set only existing value
-		{name: "case5", arr: []string{"get", "mykey"}, want: "hello1"},
+		{name: "case3", arr: []string{"set", "mykey1", "hello1", "nx"}, want: "+OK"},     // set only if not exists
+		{name: "case4", arr: []string{"set", "mykeyExist", "hello1", "xx"}, want: "+OK"}, // set only existing element
 	}
 	for _, tt := range tests {
-		if tt.name == "case2" || tt.name == "case5" {
-			t.Run(tt.name, func(t *testing.T) {
-				if got := utils.CommandGet(&tt.arr); got[4:] != tt.want {
-					t.Errorf("CommandGet(%v) = %v, want %v", tt.arr, got, tt.want)
-				}
-			})
-		} else {
-			t.Run(tt.name, func(t *testing.T) {
-				if got := utils.CommandSet(&tt.arr); got != tt.want {
-					t.Errorf("CommandSet(%v) = %v, want %v", tt.arr, got, tt.want)
-				}
-			})
-		}
+		mapObj := utils.NewRedisMap()
+		mapObj.Set("mykeyExist", "123")
+		t.Run(tt.name, func(t *testing.T) {
+			if got := utils.CommandSet(&tt.arr, mapObj); got != tt.want {
+				t.Errorf("CommandSet(%v) = %v, want %v", tt.arr, got, tt.want)
+			}
+		})
+
 	}
 }
 
@@ -94,24 +82,20 @@ func TestDel(t *testing.T) {
 		arr  []string
 		want string
 	}{
-		{name: "case1", arr: []string{"set", "key1", "hello"}, want: "+OK"},
-		{name: "case2", arr: []string{"set", "key2", "world"}, want: "+OK"},
-		{name: "case3", arr: []string{"set", "del", "key1", "key2", "key3"}, want: ":2"}, // only deleted value count (note: ":" redis integer symbol)
+		{name: "case1", arr: []string{"del", "test123"}, want: ":0"}, // (integer) 0
+		{name: "case2", arr: []string{"DeL", "test123"}, want: ":0"},
+		{name: "case3", arr: []string{"del", "key1", "key2", "key3"}, want: ":2"}, // only deleted value count (note: ":" redis integer symbol)
 	}
+
+	mapObj := utils.NewRedisMap()
+	mapObj.Set("key1", "123")
+	mapObj.Set("key2", "123")
 	for _, tt := range tests {
-		if tt.name == "case1" || tt.name == "case2" {
-			t.Run(tt.name, func(t *testing.T) {
-				if got := utils.CommandSet(&tt.arr); got != tt.want {
-					t.Errorf("CommandSet(%v) = %v, want %v", tt.arr, got, tt.want)
-				}
-			})
-		} else {
-			t.Run(tt.name, func(t *testing.T) {
-				if got := utils.CommandDel(&tt.arr); got != tt.want {
-					t.Errorf("CommandDel(%v) = %v, want %v", tt.arr, got, tt.want)
-				}
-			})
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			if got := utils.CommandDel(&tt.arr, mapObj); got != tt.want {
+				t.Errorf("CommandDel(%v) = %v, want %v", tt.arr, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -121,29 +105,18 @@ func TestIncrby(t *testing.T) {
 		arr  []string
 		want string
 	}{
-		{name: "case1", arr: []string{"set", "mykey", "10"}, want: "+OK"},
-		{name: "case2", arr: []string{"incrby", "mykey", "5"}, want: ":15"}, //	(note: ":" redis integer symbol)
-		{name: "case3", arr: []string{"get", "mykey"}, want: "15"},
+		{name: "case1", arr: []string{"incrby", "mykey", "5"}, want: ":15"}, //	(note: ":" redis integer)
+		{name: "case2", arr: []string{"INCRBY", "mykey", "11"}, want: ":26"},
+		{name: "case2", arr: []string{"INCRBY", "test", "1"}, want: ":1"},
 	}
+
+	mapObj := utils.NewRedisMap()
+	mapObj.Set("mykey", "10")
 	for _, tt := range tests {
-		if tt.name == "case1" {
-			t.Run(tt.name, func(t *testing.T) {
-				if got := utils.CommandSet(&tt.arr); got != tt.want {
-					t.Errorf("CommandSet(%v) = %v, want %v", tt.arr, got, tt.want)
-				}
-			})
-		} else if tt.name == "case3" {
-			t.Run(tt.name, func(t *testing.T) {
-				if got := utils.CommandGet(&tt.arr); got[4:] != tt.want {
-					t.Errorf("CommandGet(%v) = %v, want %v", tt.arr, got, tt.want)
-				}
-			})
-		} else {
-			t.Run(tt.name, func(t *testing.T) {
-				if got := utils.CommandIncrby(&tt.arr); got != tt.want {
-					t.Errorf("CommandIncrby(%v) = %v, want %v", tt.arr, got, tt.want)
-				}
-			})
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			if got := utils.CommandIncrby(&tt.arr, mapObj); got != tt.want {
+				t.Errorf("CommandIncrby(%v) = %v, want %v", tt.arr, got, tt.want)
+			}
+		})
 	}
 }

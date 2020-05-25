@@ -3,31 +3,7 @@ package utils
 import (
 	"strconv"
 	"strings"
-	"sync"
 )
-
-var mapObj = make(map[string]string)
-var mLock = &sync.Mutex{}
-
-func rSet(key string, value string) {
-	mLock.Lock()
-	mapObj[key] = value
-	mLock.Unlock()
-}
-
-func rGet(key string) (string, bool) {
-	mLock.Lock()
-	defer mLock.Unlock()
-
-	value, hasError := mapObj[key]
-	return value, hasError
-}
-
-func rDelete(key string) {
-	mLock.Lock()
-	defer mLock.Unlock()
-	delete(mapObj, key)
-}
 
 func contains(arr []string, value string) bool {
 	for _, element := range arr {
@@ -36,35 +12,6 @@ func contains(arr []string, value string) bool {
 		}
 	}
 	return false
-}
-
-func rIncrement(key string, inc string) (string, bool) {
-	mLock.Lock()
-	defer mLock.Unlock()
-
-	value, hasVal := mapObj[key]
-	if hasVal {
-		oldVal, err := strconv.Atoi(value)
-		if err != nil {
-			return "value is not an integer or out of range", false
-		}
-
-		incVal, err := strconv.Atoi(inc)
-		if err != nil {
-			return "value is not an integer or out of range", false
-		}
-
-		mapObj[key] = strconv.Itoa(oldVal + incVal)
-		return mapObj[key], true
-	}
-
-	_, err := strconv.Atoi(inc)
-	if err != nil {
-		return "value is not an integer or out of range", false
-	}
-
-	mapObj[key] = inc
-	return inc, true
 }
 
 func parser(strContent string) ([]string, bool) {
@@ -102,12 +49,12 @@ func CommandPing(strContent *[]string) string {
 }
 
 // CommandGet ...
-func CommandGet(strContent *[]string) string {
+func CommandGet(strContent *[]string, mapObj *RedisMap) string {
 	if len(*strContent) == 1 {
 		return msgErrorDefault
 	}
 
-	if val, ok := rGet((*strContent)[1]); ok {
+	if val, ok := mapObj.Get((*strContent)[1]); ok {
 		return prefBulk + strconv.Itoa(len(val)) + prefCRLF + val
 	}
 
@@ -115,29 +62,29 @@ func CommandGet(strContent *[]string) string {
 }
 
 // CommandSet ...
-func CommandSet(strContent *[]string) string {
+func CommandSet(strContent *[]string, mapObj *RedisMap) string {
 	if len(*strContent) < 3 { // minimum requirement: set variable value
 		return msgErrorDefault
 	}
 
 	if len(*strContent) == 4 {
 		if strings.ToUpper((*strContent)[3]) == "NX" { // Only set the key if it does not already exist
-			if _, ok := rGet((*strContent)[1]); ok {
+			if _, ok := mapObj.Get((*strContent)[1]); ok {
 				return msgNil
 			}
 
-			rSet((*strContent)[1], (*strContent)[2])
+			mapObj.Set((*strContent)[1], (*strContent)[2])
 			return msgOK
 		} else if strings.ToUpper((*strContent)[3]) == "XX" { // Only set the key if it already exist.
-			if _, ok := rGet((*strContent)[1]); ok {
-				rSet((*strContent)[1], (*strContent)[2])
+			if _, ok := mapObj.Get((*strContent)[1]); ok {
+				mapObj.Set((*strContent)[1], (*strContent)[2])
 				return msgOK
 			}
 
 			return msgNil
 		}
 	} else {
-		rSet((*strContent)[1], (*strContent)[2])
+		mapObj.Set((*strContent)[1], (*strContent)[2])
 		return msgOK
 	}
 
@@ -145,15 +92,15 @@ func CommandSet(strContent *[]string) string {
 }
 
 // CommandDel ...
-func CommandDel(strContent *[]string) string {
+func CommandDel(strContent *[]string, mapObj *RedisMap) string {
 	if len(*strContent) == 1 {
 		return msgErrorDefault
 	}
 
 	delNum := 0
 	for i := 1; i < len(*strContent); i++ {
-		if _, ok := rGet((*strContent)[i]); ok {
-			rDelete((*strContent)[i])
+		if _, ok := mapObj.Get((*strContent)[i]); ok {
+			mapObj.Delete((*strContent)[i])
 			delNum++
 		}
 	}
@@ -162,12 +109,12 @@ func CommandDel(strContent *[]string) string {
 }
 
 // CommandIncrby ...
-func CommandIncrby(strContent *[]string) string {
+func CommandIncrby(strContent *[]string, mapObj *RedisMap) string {
 	if len(*strContent) != 3 {
 		return msgErrorDefault
 	}
 
-	result, isSuccess := rIncrement((*strContent)[1], (*strContent)[2])
+	result, isSuccess := mapObj.Increment((*strContent)[1], (*strContent)[2])
 	if isSuccess {
 		return prefInteger + result
 	}
@@ -176,7 +123,7 @@ func CommandIncrby(strContent *[]string) string {
 }
 
 // DoLogic redis basic operation
-func DoLogic(prmString string) string {
+func DoLogic(prmString string, mapObj *RedisMap) string {
 	strContent, isSuccess := parser(prmString)
 	if !isSuccess {
 		return msgErrorDefault + prefCRLF
@@ -189,13 +136,13 @@ func DoLogic(prmString string) string {
 	case "PING":
 		response = CommandPing(&strContent)
 	case "GET":
-		response = CommandGet(&strContent)
+		response = CommandGet(&strContent, mapObj)
 	case "SET":
-		response = CommandSet(&strContent)
+		response = CommandSet(&strContent, mapObj)
 	case "DEL":
-		response = CommandDel(&strContent)
+		response = CommandDel(&strContent, mapObj)
 	case "INCRBY":
-		response = CommandIncrby(&strContent)
+		response = CommandIncrby(&strContent, mapObj)
 	default:
 		return response
 	}
