@@ -1,1 +1,7 @@
-dbname siteinfo sitenameikipedia/sitename dbnameenwiki/dbname
+  siteinfo
+    sitenameikipedia/sitename
+    dbnameenwiki/dbname
+    basehttps//en.wikipedia.org/wiki/ain_age/base
+    generatorediaiki 1.35.0-wmf.25/generator
+    casefirst-letter/case
+    namespaces
