@@ -36,6 +36,11 @@ export GOBIN=$GOPATH/bin
 export PATH=$PATH:$GOPATH/bin
 ```
 
+### Init mod file
+```
+go mod init <module_name>
+```
+
 ## Basic commands
 go lang build a binary file, note: In linux environment uses (GOOS=linux)
 
