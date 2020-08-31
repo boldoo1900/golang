@@ -5,7 +5,7 @@ Basic go settings, testing, godoc, profiling, test programms (MACOS)
 ## Overview
 1. [Install prerequisites](#install-prerequisites)
 
-    Golang installation, and envriment settings
+    Golang installation, and enviroment settings
 
 2. [Basic commands](#basic-commands)
 
